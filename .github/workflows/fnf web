@@ -1,0 +1,64 @@
+name: Compilar e Publicar Engine FNF
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+# Dá permissão para o Workflow publicar o site no seu repositório
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o Código
+        uses: actions/checkout@v4
+
+      - name: Instalar o Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.4
+
+      - name: Configurar Pastas do Haxe
+        run: haxelib setup ~/haxelib
+
+      - name: Instalar Bibliotecas Base
+        run: |
+          haxelib install lime
+          haxelib install openfl
+          haxelib install flixel
+          haxelib run lime setup flixel
+
+      - name: Instalar Bibliotecas do FNF Plus
+        run: |
+          haxelib git funkin.vis https://github.com
+          haxelib git grig.audio https://github.com
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript
+          haxelib install tjson
+
+      - name: Compilar para HTML5
+        run: haxelib run lime build html5 -release
+
+      - name: Configurar Páginas do GitHub
+        uses: actions/configure-pages@v5
+
+      - name: Compactar Arquivos do Jogo
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'export/release/html5/bin/'
+
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
